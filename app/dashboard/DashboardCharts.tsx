@@ -40,14 +40,14 @@ export function DashboardCharts({
       {
         data: byCategory.map((c) => c.total),
         backgroundColor: [
-          "rgba(59, 130, 246, 0.8)",
-          "rgba(16, 185, 129, 0.8)",
-          "rgba(245, 158, 11, 0.8)",
-          "rgba(239, 68, 68, 0.8)",
-          "rgba(139, 92, 246, 0.8)",
-          "rgba(236, 72, 153, 0.8)",
+          "rgba(16, 185, 129, 0.8)", // Green (Food)
+          "rgba(59, 130, 246, 0.8)", // Blue (Transport)
+          "rgba(139, 92, 246, 0.8)", // Purple (Housing)
+          "rgba(249, 115, 22, 0.8)", // Orange (Entertainment)
+          "rgba(236, 72, 153, 0.8)", // Pink (Other)
+          "rgba(107, 114, 128, 0.8)", // Gray
         ],
-        borderWidth: 1,
+        borderWidth: 0,
       },
     ],
   };
@@ -59,9 +59,13 @@ export function DashboardCharts({
         label: "Spending (MYR)",
         data: byMonth.map((m) => m.total),
         fill: true,
-        borderColor: "rgb(59, 130, 246)",
-        backgroundColor: "rgba(59, 130, 246, 0.1)",
-        tension: 0.2,
+        borderColor: "#10b981", // Primary green
+        backgroundColor: "rgba(16, 185, 129, 0.1)", // Light green fill
+        tension: 0.3,
+        pointBackgroundColor: "#fff",
+        pointBorderColor: "#10b981",
+        pointBorderWidth: 2,
+        pointRadius: 4,
       },
     ],
   };
@@ -86,23 +90,23 @@ export function DashboardCharts({
   };
 
   return (
-    <div className="mt-8 space-y-8">
+    <div className="mt-6 grid gap-6 md:grid-cols-2">
       {byCategory.length > 0 && (
-        <div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
             Spending by category
           </h3>
-          <div className="mx-auto mt-2 max-h-[280px] w-full max-w-sm">
+          <div className="mx-auto mt-4 max-h-[300px] w-full max-w-sm flex justify-center">
             <Pie data={pieData} options={pieOptions} />
           </div>
         </div>
       )}
       {byMonth.length > 0 && (
-        <div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
             Monthly trend
           </h3>
-          <div className="mt-2 h-[240px] w-full">
+          <div className="mt-4 h-[300px] w-full">
             <Line data={lineData} options={lineOptions} />
           </div>
         </div>

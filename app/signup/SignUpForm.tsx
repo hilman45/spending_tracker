@@ -57,7 +57,7 @@ export function SignUpForm() {
       </label>
       <button
         type="submit"
-        className="w-full rounded-lg bg-zinc-900 px-4 py-2 font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        className="w-full rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:opacity-90"
       >
         Create account
       </button>

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { detectTransactions } from "@/app/actions/detect";
+import { AppHeader } from "@/app/components/AppHeader";
 import { ReviewForm } from "./ReviewForm";
 
 type Props = { searchParams: Promise<{ fileId?: string }> };
@@ -48,19 +49,16 @@ export default async function ReviewPage({ searchParams }: Props) {
   if ("error" in result) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-        <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-              Spending Tracker
-            </h1>
+        <AppHeader
+          simpleNav={
             <Link
               href="/upload"
               className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
             >
               Back to Upload
             </Link>
-          </div>
-        </header>
+          }
+        />
         <main className="mx-auto max-w-4xl px-4 py-8">
           <div className="rounded-xl border border-red-200 bg-red-50 p-6 dark:border-red-900 dark:bg-red-900/20">
             <p className="text-red-700 dark:text-red-400">{result.error}</p>
@@ -78,12 +76,9 @@ export default async function ReviewPage({ searchParams }: Props) {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-            Review transactions
-          </h1>
-          <nav className="flex items-center gap-4">
+      <AppHeader
+        simpleNav={
+          <>
             <Link
               href="/upload"
               className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
@@ -96,9 +91,9 @@ export default async function ReviewPage({ searchParams }: Props) {
             >
               Dashboard
             </Link>
-          </nav>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <main className="mx-auto max-w-4xl px-4 py-8">
         <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">

@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { signOut } from "@/app/actions/auth";
+import { AppHeader } from "@/app/components/AppHeader";
 import { UploadZone } from "./UploadZone";
 import { FileList } from "./FileList";
 
@@ -23,44 +22,7 @@ export default async function UploadPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-            Spending Tracker
-          </h1>
-          <nav className="flex items-center gap-4">
-            <Link
-              href="/dashboard"
-              className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/upload"
-              className="text-sm font-medium text-zinc-900 dark:text-zinc-50"
-            >
-              Upload
-            </Link>
-            <Link
-              href="/transactions"
-              className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-            >
-              Transactions
-            </Link>
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">
-              {user.email}
-            </span>
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                Sign out
-              </button>
-            </form>
-          </nav>
-        </div>
-      </header>
+      <AppHeader user={user} activePage="upload" />
 
       <main className="mx-auto max-w-4xl px-4 py-8">
         <div className="space-y-8">

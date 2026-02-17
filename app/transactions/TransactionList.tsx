@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateTransaction, deleteTransaction } from "@/app/actions/transactions";
+import { confirmRecurring } from "@/app/actions/recurring";
 
 const CATEGORY_OPTIONS = [
   "Other",
@@ -22,6 +23,9 @@ export type TransactionRow = {
   confirmed_category: string;
   file_id: string | null;
   file_name: string | null;
+  is_recurring?: boolean;
+  recurring_pattern_id?: string | null;
+  recurring_suggestion?: boolean;
 };
 
 export function TransactionList({
@@ -74,6 +78,16 @@ export function TransactionList({
     if (!confirm("Delete this transaction?")) return;
     setError(null);
     const result = await deleteTransaction(id);
+    if (result?.error) {
+      setError(result.error);
+      return;
+    }
+    router.refresh();
+  }
+
+  async function handleConfirmRecurring(id: string) {
+    setError(null);
+    const result = await confirmRecurring(id);
     if (result?.error) {
       setError(result.error);
       return;
@@ -208,12 +222,36 @@ export function TransactionList({
                       {t.confirmed_category}
                     </td>
                     <td className="max-w-[200px] truncate py-2 text-zinc-600 dark:text-zinc-400">
-                      {t.description || "—"}
+                      <span className="block truncate">{t.description || "—"}</span>
+                      <div className="mt-0.5 flex flex-wrap gap-1">
+                        {t.is_recurring && (
+                          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary dark:bg-primary/20">
+                            Recurring
+                          </span>
+                        )}
+                        {!t.is_recurring && t.recurring_suggestion && (
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                            Recurring Suggestion
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="max-w-[140px] truncate py-2 text-zinc-500 dark:text-zinc-400">
                       {t.file_name ?? "—"}
                     </td>
                     <td className="py-2 text-right">
+                      {!t.is_recurring && t.recurring_suggestion && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleConfirmRecurring(t.id)}
+                            className="text-primary hover:underline"
+                          >
+                            Confirm recurring
+                          </button>
+                          <span className="mx-1 text-zinc-300 dark:text-zinc-600">|</span>
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={() => startEdit(t)}

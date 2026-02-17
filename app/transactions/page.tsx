@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { signOut } from "@/app/actions/auth";
+import { AppHeader } from "@/app/components/AppHeader";
 import { TransactionList } from "./TransactionList";
 import { TransactionFilters } from "./TransactionFilters";
+import { attachRecurringSuggestions } from "@/lib/recurring/detect";
 
 type Props = {
   searchParams: Promise<{ dateFrom?: string; dateTo?: string; category?: string }>;
@@ -23,7 +24,7 @@ export default async function TransactionsPage({ searchParams }: Props) {
 
   let query = supabase
     .from("transactions")
-    .select("id, date, amount, currency, description, confirmed_category, file_id, created_at, files(name)")
+    .select("id, date, amount, currency, description, confirmed_category, file_id, created_at, is_recurring, recurring_pattern_id, files(name)")
     .eq("user_id", user.id);
 
   if (dateFrom) query = query.gte("date", dateFrom);
@@ -38,7 +39,7 @@ export default async function TransactionsPage({ searchParams }: Props) {
     .order("name");
   const categories = (categoryRows ?? []).map((r) => r.name);
 
-  const transactions = (rows ?? []).map((r) => {
+  const transactionsRaw = (rows ?? []).map((r) => {
     const files = r.files as { name: string }[] | { name: string } | null | undefined;
     const fileObj = Array.isArray(files) ? files[0] : files;
     return {
@@ -50,51 +51,19 @@ export default async function TransactionsPage({ searchParams }: Props) {
       confirmed_category: r.confirmed_category ?? "Other",
       file_id: r.file_id ?? null,
       file_name: fileObj?.name ?? null,
+      is_recurring: r.is_recurring ?? false,
+      recurring_pattern_id: r.recurring_pattern_id ?? null,
     };
   });
+
+  // Recurring detection runs dynamically; attach recurring_suggestion per transaction
+  const transactions = attachRecurringSuggestions(transactionsRaw);
 
   const total = transactions.reduce((sum, t) => sum + t.amount, 0);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-            Spending Tracker
-          </h1>
-          <nav className="flex items-center gap-4">
-            <Link
-              href="/dashboard"
-              className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/upload"
-              className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-            >
-              Upload
-            </Link>
-            <Link
-              href="/transactions"
-              className="text-sm font-medium text-zinc-900 dark:text-zinc-50"
-            >
-              Transactions
-            </Link>
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">
-              {user.email}
-            </span>
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                Sign out
-              </button>
-            </form>
-          </nav>
-        </div>
-      </header>
+      <AppHeader user={user} activePage="transactions" />
 
       <main className="mx-auto max-w-4xl px-4 py-8">
         <TransactionFilters
