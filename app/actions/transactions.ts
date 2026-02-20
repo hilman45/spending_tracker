@@ -11,11 +11,15 @@ export type TransactionToSave = {
   confirmed_category: string;
 };
 
+/** Optional tag IDs to attach to every inserted transaction (e.g. from review batch). */
+export type SaveTransactionsOptions = { tagIds?: string[] };
+
 const DEFAULT_CATEGORY = "Other";
 
 export async function saveTransactions(
   fileId: string,
-  transactions: TransactionToSave[]
+  transactions: TransactionToSave[],
+  options?: SaveTransactionsOptions
 ) {
   const supabase = await createClient();
 
@@ -43,10 +47,24 @@ export async function saveTransactions(
       DEFAULT_CATEGORY,
   }));
 
-  const { error } = await supabase.from("transactions").insert(rows);
+  const { data: inserted, error } = await supabase
+    .from("transactions")
+    .insert(rows)
+    .select("id");
 
   if (error) {
     return { error: error.message };
+  }
+
+  const tagIds = options?.tagIds?.filter(Boolean) ?? [];
+  if (tagIds.length > 0 && inserted?.length) {
+    const linkRows: { transaction_id: string; tag_id: string }[] = [];
+    for (const row of inserted) {
+      for (const tagId of tagIds) {
+        linkRows.push({ transaction_id: row.id, tag_id: tagId });
+      }
+    }
+    await supabase.from("transaction_tags").insert(linkRows);
   }
 
   revalidatePath("/upload");

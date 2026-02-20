@@ -15,7 +15,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request,
   });
 

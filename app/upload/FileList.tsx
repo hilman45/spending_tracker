@@ -98,7 +98,11 @@ export function FileList({ files }: { files: FileItem[] }) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-zinc-500">
-                  {new Date(f.created_at).toLocaleDateString()}
+                  {new Date(f.created_at).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                  })}
                 </span>
                 {f.extraction_status === "completed" && (
                   <Link

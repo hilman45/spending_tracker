@@ -6,7 +6,7 @@ import { ThemeToggle } from "./ThemeToggle";
 type AppHeaderProps = {
   user?: { email?: string | null } | null;
   title?: string;
-  activePage?: "dashboard" | "upload" | "transactions" | "budgets";
+  activePage?: "dashboard" | "upload" | "transactions" | "budgets" | "tags";
   /** When provided, show simplified nav (e.g. Review page with Back to Upload) */
   simpleNav?: React.ReactNode;
 };
@@ -60,6 +60,12 @@ export function AppHeader({
                 className={linkClass(activePage === "budgets")}
               >
                 Budgets
+              </Link>
+              <Link
+                href="/dashboard/tags"
+                className={linkClass(activePage === "tags")}
+              >
+                Tags
               </Link>
             </>
           )}

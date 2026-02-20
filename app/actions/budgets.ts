@@ -33,20 +33,27 @@ export async function getBudgetsForMonth(
     .order("created_at", { ascending: true });
 
   if (error) return [];
-  const categories = (rows as { categories: { name: string } | null }[]) ?? [];
-  return categories.map((r: Record<string, unknown>) => {
-    const cat = r.categories as { name: string } | null;
-    return {
-      id: r.id,
-      user_id: r.user_id,
-      category_id: r.category_id,
-      month: r.month,
-      year: r.year,
-      amount: Number(r.amount),
-      created_at: r.created_at,
-      category_name: cat?.name ?? "Other",
-    } as BudgetWithCategory;
-  });
+  type BudgetRow = {
+    id: string;
+    user_id: string;
+    category_id: string;
+    month: number;
+    year: number;
+    amount: number;
+    created_at: string;
+    categories: { name: string } | null;
+  };
+  const list = (rows as unknown) as BudgetRow[] | null;
+  return (list ?? []).map((r) => ({
+    id: r.id,
+    user_id: r.user_id,
+    category_id: r.category_id,
+    month: r.month,
+    year: r.year,
+    amount: Number(r.amount),
+    created_at: r.created_at,
+    category_name: r.categories?.name ?? "Other",
+  }));
 }
 
 /**
@@ -73,20 +80,27 @@ export async function getBudgets(
 
   const { data: rows, error } = await query;
   if (error) return [];
-  const list = (rows as { categories: { name: string } | null }[]) ?? [];
-  return list.map((r: Record<string, unknown>) => {
-    const cat = r.categories as { name: string } | null;
-    return {
-      id: r.id,
-      user_id: r.user_id,
-      category_id: r.category_id,
-      month: r.month,
-      year: r.year,
-      amount: Number(r.amount),
-      created_at: r.created_at,
-      category_name: cat?.name ?? "Other",
-    } as BudgetWithCategory;
-  });
+  type BudgetRow = {
+    id: string;
+    user_id: string;
+    category_id: string;
+    month: number;
+    year: number;
+    amount: number;
+    created_at: string;
+    categories: { name: string } | null;
+  };
+  const list = (rows as unknown) as BudgetRow[] | null;
+  return (list ?? []).map((r) => ({
+    id: r.id,
+    user_id: r.user_id,
+    category_id: r.category_id,
+    month: r.month,
+    year: r.year,
+    amount: Number(r.amount),
+    created_at: r.created_at,
+    category_name: r.categories?.name ?? "Other",
+  }));
 }
 
 /**

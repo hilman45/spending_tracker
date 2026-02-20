@@ -7,6 +7,7 @@ import type { DetectedTransaction } from "@/app/actions/detect";
 
 const DEFAULT_CATEGORY = "Other";
 
+type TagOption = { id: string; name: string };
 type InitialTransaction = DetectedTransaction & {
   suggested_category?: string | null;
 };
@@ -16,10 +17,12 @@ export function ReviewForm({
   fileId,
   initialTransactions,
   categories: categoryOptions,
+  tags = [],
 }: {
   fileId: string;
   initialTransactions: InitialTransaction[];
   categories: string[];
+  tags?: TagOption[];
 }) {
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>(
@@ -28,8 +31,15 @@ export function ReviewForm({
       confirmed_category: t.suggested_category || DEFAULT_CATEGORY,
     }))
   );
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function toggleTag(tagId: string) {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+  }
 
   function updateRow(i: number, field: keyof Row, value: string | number) {
     setRows((prev) => {
@@ -50,7 +60,9 @@ export function ReviewForm({
       description: r.description || "",
       confirmed_category: r.confirmed_category || DEFAULT_CATEGORY,
     }));
-    const result = await saveTransactions(fileId, transactions);
+    const result = await saveTransactions(fileId, transactions, {
+      tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+    });
     setSaving(false);
     if (result?.error) {
       setError(result.error);
@@ -72,6 +84,29 @@ export function ReviewForm({
           something looks wrong, then pick a category. When everything looks good,
           click <strong>Confirm and save</strong>.
         </p>
+        {tags.length > 0 && (
+          <div className="mt-3">
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              Optional: add tags to all these transactions
+            </span>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {tags.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => toggleTag(t.id)}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                    selectedTagIds.includes(t.id)
+                      ? "bg-primary text-white"
+                      : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+                  }`}
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {error && (

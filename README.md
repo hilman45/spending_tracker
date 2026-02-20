@@ -46,6 +46,10 @@ spending_tracker1.0/
 └── .docs/            # Product specs (PRD, FEATURES, etc.)
 ```
 
+## Deploy
+
+To deploy (e.g. Vercel): build, set env vars, and configure Supabase redirect URLs. See **[docs/DEPLOY.md](docs/DEPLOY.md)** for the full checklist.
+
 ## Next Steps
 
 After Supabase is configured:

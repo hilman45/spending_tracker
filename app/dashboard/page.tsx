@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AppHeader } from "@/app/components/AppHeader";
 import { DashboardFilters } from "./DashboardFilters";
 import { DashboardCharts } from "./DashboardCharts";
+import { AIInsightsCard } from "./AIInsightsCard";
 import { getBudgetsForMonth, getSpentByCategoryForMonth } from "@/app/actions/budgets";
 import { attachRecurringSuggestions } from "@/lib/recurring/detect";
 
@@ -78,10 +79,69 @@ export default async function DashboardPage({ searchParams }: Props) {
     .order("name");
   const categories = (categoryRows ?? []).map((r) => r.name);
 
-  // Budget tracking: current month by default
+  // Month-to-month comparison: calendar months only (no dashboard filters)
   const now = new Date();
-  const budgetMonth = now.getMonth() + 1;
-  const budgetYear = now.getFullYear();
+  const thisYear = now.getFullYear();
+  const thisMonth = now.getMonth() + 1; // 1-12
+  const prevMonth = thisMonth === 1 ? 12 : thisMonth - 1;
+  const prevYear = thisMonth === 1 ? thisYear - 1 : thisYear;
+  const prevMonthFirst = `${prevYear}-${String(prevMonth).padStart(2, "0")}-01`;
+  const thisMonthLast = new Date(thisYear, thisMonth, 0);
+  const thisMonthLastStr = `${thisYear}-${String(thisMonth).padStart(2, "0")}-${String(thisMonthLast.getDate()).padStart(2, "0")}`;
+
+  const { data: comparisonRows } = await supabase
+    .from("transactions")
+    .select("date, amount, confirmed_category")
+    .eq("user_id", user.id)
+    .gte("date", prevMonthFirst)
+    .lte("date", thisMonthLastStr);
+
+  const thisMonthByCategory: Record<string, number> = {};
+  const prevMonthByCategory: Record<string, number> = {};
+  let totalThisMonth = 0;
+  let totalPrevMonth = 0;
+  const thisMonthPrefix = `${thisYear}-${String(thisMonth).padStart(2, "0")}`;
+  const prevMonthPrefix = `${prevYear}-${String(prevMonth).padStart(2, "0")}`;
+
+  for (const r of comparisonRows ?? []) {
+    const amt = Number(r.amount);
+    const cat = r.confirmed_category ?? "Other";
+    const dateStr = String(r.date);
+    if (dateStr.startsWith(thisMonthPrefix)) {
+      totalThisMonth += amt;
+      thisMonthByCategory[cat] = (thisMonthByCategory[cat] ?? 0) + amt;
+    } else if (dateStr.startsWith(prevMonthPrefix)) {
+      totalPrevMonth += amt;
+      prevMonthByCategory[cat] = (prevMonthByCategory[cat] ?? 0) + amt;
+    }
+  }
+
+  const comparisonCategories = Array.from(
+    new Set([...Object.keys(thisMonthByCategory), ...Object.keys(prevMonthByCategory)])
+  ).sort();
+  const comparisonRowsData = comparisonCategories.map((cat) => {
+    const curr = thisMonthByCategory[cat] ?? 0;
+    const prev = prevMonthByCategory[cat] ?? 0;
+    const hasPrev = prev > 0;
+    const percentDiff = hasPrev ? ((curr - prev) / prev) * 100 : null;
+    return { category: cat, thisMonth: curr, prevMonth: prev, percentDiff };
+  });
+
+  const totalPercentDiff =
+    totalPrevMonth > 0 ? ((totalThisMonth - totalPrevMonth) / totalPrevMonth) * 100 : null;
+
+  const thisMonthLabel = new Date(thisYear, thisMonth - 1).toLocaleString("default", {
+    month: "long",
+    year: "numeric",
+  });
+  const prevMonthLabel = new Date(prevYear, prevMonth - 1).toLocaleString("default", {
+    month: "long",
+    year: "numeric",
+  });
+
+  // Budget tracking: current month by default
+  const budgetMonth = thisMonth;
+  const budgetYear = thisYear;
   const [budgets, spentByCategory] = await Promise.all([
     getBudgetsForMonth(user.id, budgetMonth, budgetYear),
     getSpentByCategoryForMonth(user.id, budgetMonth, budgetYear),
@@ -203,6 +263,124 @@ export default async function DashboardPage({ searchParams }: Props) {
         </div>
 
         <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Month-to-Month Comparison
+          </h3>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div>
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                This month ({thisMonthLabel})
+              </p>
+              <p className="mt-0.5 text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                {totalThisMonth.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{" "}
+                MYR
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Previous month ({prevMonthLabel})
+              </p>
+              <p className="mt-0.5 text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                {totalPrevMonth.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{" "}
+                MYR
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                % difference
+              </p>
+              <p className="mt-0.5 text-lg font-bold">
+                {totalPercentDiff === null ? (
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    No previous data
+                  </span>
+                ) : totalPercentDiff > 0 ? (
+                  <span className="text-red-600 dark:text-red-400">
+                    +{totalPercentDiff.toFixed(1)}%
+                  </span>
+                ) : totalPercentDiff < 0 ? (
+                  <span className="text-green-600 dark:text-green-400">
+                    {totalPercentDiff.toFixed(1)}%
+                  </span>
+                ) : (
+                  <span className="text-zinc-700 dark:text-zinc-300">0%</span>
+                )}
+              </p>
+            </div>
+          </div>
+          {comparisonRowsData.length > 0 && (
+            <div className="mt-6 overflow-x-auto">
+              <table className="w-full min-w-[400px] text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200 dark:border-zinc-700">
+                    <th className="pb-2 text-left font-medium text-zinc-600 dark:text-zinc-400">
+                      Category
+                    </th>
+                    <th className="pb-2 text-right font-medium text-zinc-600 dark:text-zinc-400">
+                      This month
+                    </th>
+                    <th className="pb-2 text-right font-medium text-zinc-600 dark:text-zinc-400">
+                      Previous month
+                    </th>
+                    <th className="pb-2 text-right font-medium text-zinc-600 dark:text-zinc-400">
+                      % change
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {comparisonRowsData.map((row) => (
+                    <tr key={row.category}>
+                      <td className="py-2 font-medium text-zinc-900 dark:text-zinc-50">
+                        {row.category}
+                      </td>
+                      <td className="py-2 text-right text-zinc-700 dark:text-zinc-300">
+                        {row.thisMonth.toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{" "}
+                        MYR
+                      </td>
+                      <td className="py-2 text-right text-zinc-700 dark:text-zinc-300">
+                        {row.prevMonth.toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{" "}
+                        MYR
+                      </td>
+                      <td className="py-2 text-right">
+                        {row.percentDiff === null ? (
+                          <span className="text-zinc-500 dark:text-zinc-400">
+                            No previous data
+                          </span>
+                        ) : row.percentDiff > 0 ? (
+                          <span className="font-medium text-red-600 dark:text-red-400">
+                            +{row.percentDiff.toFixed(1)}%
+                          </span>
+                        ) : row.percentDiff < 0 ? (
+                          <span className="font-medium text-green-600 dark:text-green-400">
+                            {row.percentDiff.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-zinc-700 dark:text-zinc-300">
+                            0%
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Monthly budgets — {monthLabel}
@@ -303,6 +481,11 @@ export default async function DashboardPage({ searchParams }: Props) {
             </div>
           )}
         </div>
+
+        <AIInsightsCard
+          month={`${thisYear}-${String(thisMonth).padStart(2, "0")}`}
+          monthLabel={monthLabel}
+        />
 
         {(byCategory.length > 0 || byMonth.length > 0) && (
           <DashboardCharts byCategory={byCategory} byMonth={byMonth} />

@@ -44,6 +44,13 @@ export default async function ReviewPage({ searchParams }: Props) {
     keywords: (r.keywords ?? []) as string[],
   }));
 
+  const { data: tagRows } = await supabase
+    .from("tags")
+    .select("id, name")
+    .eq("user_id", user.id)
+    .order("name");
+  const tags = (tagRows ?? []) as { id: string; name: string }[];
+
   const result = await detectTransactions(fileId);
 
   if ("error" in result) {
@@ -113,6 +120,7 @@ export default async function ReviewPage({ searchParams }: Props) {
               suggested_category: suggestCategory(t.description, categories),
             }))}
             categories={categories.map((c) => c.name)}
+            tags={tags}
           />
         </div>
       </main>

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateTransaction, deleteTransaction } from "@/app/actions/transactions";
 import { confirmRecurring } from "@/app/actions/recurring";
+import { setTransactionTags } from "@/app/actions/tags";
+import { getSignedFileUrl } from "@/app/actions/files";
 
 const CATEGORY_OPTIONS = [
   "Other",
@@ -13,6 +15,8 @@ const CATEGORY_OPTIONS = [
   "Food & Dining",
   "Utilities",
 ];
+
+export type TagOption = { id: string; name: string };
 
 export type TransactionRow = {
   id: string;
@@ -26,17 +30,23 @@ export type TransactionRow = {
   is_recurring?: boolean;
   recurring_pattern_id?: string | null;
   recurring_suggestion?: boolean;
+  tags?: TagOption[];
 };
 
 export function TransactionList({
   transactions,
+  allTags,
 }: {
   transactions: TransactionRow[];
+  allTags: TagOption[];
 }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRow, setEditRow] = useState<Partial<TransactionRow>>({});
+  const [editTagIds, setEditTagIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [detailTransaction, setDetailTransaction] = useState<TransactionRow | null>(null);
+  const [fileLinkError, setFileLinkError] = useState<string | null>(null);
 
   function startEdit(t: TransactionRow) {
     setEditingId(t.id);
@@ -47,13 +57,21 @@ export function TransactionList({
       description: t.description,
       confirmed_category: t.confirmed_category,
     });
+    setEditTagIds((t.tags ?? []).map((x) => x.id));
     setError(null);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setEditRow({});
+    setEditTagIds([]);
     setError(null);
+  }
+
+  function toggleEditTag(tagId: string) {
+    setEditTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
   }
 
   async function handleUpdate(id: string) {
@@ -69,8 +87,10 @@ export function TransactionList({
       setError(result.error);
       return;
     }
+    await setTransactionTags(id, editTagIds);
     setEditingId(null);
     setEditRow({});
+    setEditTagIds([]);
     router.refresh();
   }
 
@@ -95,6 +115,16 @@ export function TransactionList({
     router.refresh();
   }
 
+  async function handleViewOriginalFile(fileId: string) {
+    setFileLinkError(null);
+    const result = await getSignedFileUrl(fileId);
+    if ("error" in result) {
+      setFileLinkError(result.error);
+      return;
+    }
+    window.open(result.url, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       {error && (
@@ -117,6 +147,9 @@ export function TransactionList({
               </th>
               <th className="py-2 text-left font-medium text-zinc-700 dark:text-zinc-300">
                 Description
+              </th>
+              <th className="py-2 text-left font-medium text-zinc-700 dark:text-zinc-300">
+                Tags
               </th>
               <th className="py-2 text-left font-medium text-zinc-700 dark:text-zinc-300">
                 Source
@@ -193,6 +226,26 @@ export function TransactionList({
                     <td className="py-2 text-zinc-500 dark:text-zinc-400">
                       {t.file_name ?? "—"}
                     </td>
+                    <td className="py-2">
+                      {allTags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {allTags.map((tag) => (
+                            <button
+                              key={tag.id}
+                              type="button"
+                              onClick={() => toggleEditTag(tag.id)}
+                              className={`rounded px-1.5 py-0.5 text-xs ${
+                                editTagIds.includes(tag.id)
+                                  ? "bg-primary text-white"
+                                  : "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                              }`}
+                            >
+                              {tag.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </td>
                     <td className="py-2 text-right">
                       <button
                         type="button"
@@ -236,10 +289,47 @@ export function TransactionList({
                         )}
                       </div>
                     </td>
+                    <td className="py-2">
+                      <div className="flex flex-wrap gap-1">
+                        {(t.tags ?? []).map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
+                          >
+                            {tag.name}
+                          </span>
+                        ))}
+                        {(t.tags ?? []).length === 0 && (
+                          <span className="text-zinc-400 dark:text-zinc-500">—</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="max-w-[140px] truncate py-2 text-zinc-500 dark:text-zinc-400">
-                      {t.file_name ?? "—"}
+                      {t.file_id ? (
+                        <button
+                          type="button"
+                          onClick={() => handleViewOriginalFile(t.file_id!)}
+                          className="text-primary hover:underline truncate max-w-full block"
+                          title={t.file_name ?? "View file"}
+                        >
+                          {t.file_name ?? "View file"}
+                        </button>
+                      ) : (
+                        <span className="text-zinc-400 dark:text-zinc-500">Manual entry</span>
+                      )}
                     </td>
                     <td className="py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDetailTransaction(t);
+                          setFileLinkError(null);
+                        }}
+                        className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                      >
+                        View
+                      </button>
+                      <span className="mx-1 text-zinc-300 dark:text-zinc-600">|</span>
                       {!t.is_recurring && t.recurring_suggestion && (
                         <>
                           <button
@@ -275,6 +365,99 @@ export function TransactionList({
           </tbody>
         </table>
       </div>
+
+      {detailTransaction && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => {
+            setDetailTransaction(null);
+            setFileLinkError(null);
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="transaction-detail-title"
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-zinc-200 bg-white p-6 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="transaction-detail-title" className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              Transaction details
+            </h3>
+            <dl className="mt-4 space-y-3 text-sm">
+              <div>
+                <dt className="text-zinc-500 dark:text-zinc-400">Date</dt>
+                <dd className="font-medium text-zinc-900 dark:text-zinc-50">{detailTransaction.date}</dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500 dark:text-zinc-400">Amount</dt>
+                <dd className="font-medium text-zinc-900 dark:text-zinc-50">
+                  {detailTransaction.amount.toFixed(2)} {detailTransaction.currency}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500 dark:text-zinc-400">Category</dt>
+                <dd className="text-zinc-900 dark:text-zinc-50">{detailTransaction.confirmed_category}</dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500 dark:text-zinc-400">Description</dt>
+                <dd className="text-zinc-900 dark:text-zinc-50">{detailTransaction.description || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500 dark:text-zinc-400">Tags</dt>
+                <dd className="flex flex-wrap gap-1">
+                  {(detailTransaction.tags ?? []).length > 0
+                    ? (detailTransaction.tags ?? []).map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs dark:bg-zinc-700"
+                        >
+                          {tag.name}
+                        </span>
+                      ))
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500 dark:text-zinc-400">Source</dt>
+                <dd>
+                  {detailTransaction.file_id ? (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => handleViewOriginalFile(detailTransaction.file_id!)}
+                        className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+                      >
+                        View Original File
+                      </button>
+                      {detailTransaction.file_name && (
+                        <p className="mt-1 text-zinc-500 dark:text-zinc-400">{detailTransaction.file_name}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-zinc-500 dark:text-zinc-400">Manual entry</span>
+                  )}
+                  {fileLinkError && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fileLinkError}</p>
+                  )}
+                </dd>
+              </div>
+            </dl>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setDetailTransaction(null);
+                  setFileLinkError(null);
+                }}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
